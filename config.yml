@@ -1,4 +1,7 @@
 token: "$LICHESS_BOT_TOKEN"
+url: "https://lichess.org"
+api_url: "https://lichess.org"
+
 engine:
   dir: "."
   name: "yafa"
