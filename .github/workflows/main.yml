@@ -19,7 +19,7 @@ jobs:
 
     - name: Lichess-Bot-Framework installieren
       run: |
-        git clone https://github.com/bravo-girl/lichess-bot-yafa.git framework
+        git clone https://github.com/ShailChoksi/lichess-bot.git framework
         cd framework
         pip install -r requirements.txt
         cp ../config.yml .
