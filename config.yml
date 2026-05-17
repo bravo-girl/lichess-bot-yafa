@@ -21,3 +21,5 @@ challenge:
   modes:
     - rated
     - casual
+  variants:
+    - standard
