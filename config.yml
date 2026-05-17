@@ -1,0 +1,20 @@
+token: "$LICHESS_BOT_TOKEN"
+engine:
+  dir: "."
+  name: "yafa"
+  protocol: "uci"
+  options:
+    Threads: 1
+    Hash: 16
+  ponder: false
+
+challenge:
+  accept_bot: true
+  accept_human: false
+  time_controls:
+    - bullet
+    - blitz
+    - rapid
+  modes:
+    - rated
+    - casual
