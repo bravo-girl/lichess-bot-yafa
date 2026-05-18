@@ -2,6 +2,11 @@ token: "$LICHESS_BOT_TOKEN"
 url: "https://lichess.org"
 api_url: "https://lichess.org"
 
+matchmaking:
+  allow_during_games: false      # Spielt nicht gleichzeitig, wenn schon ein Spiel läuft
+  challenge_timeout: 900          # Wartzeit zwischen Herausforderungen in Sekunden
+  block_list: []                 # Bots, die du ignorieren willst
+  
 engine:
   dir: "."
   name: "yafa"
