@@ -2,8 +2,8 @@ name: Lichess Bot 24/7
 
 on:
   schedule:
-    - cron: '0 */5 * * *' # Startet alle 5 Stunden automatisch neu
-  workflow_dispatch: # Erlaubt den manuellen Start per Klick
+    - cron: '0 */4 * * *' # Versucht nun alle 4 Stunden (stündlich glatt) zu starten
+  workflow_dispatch:
 
 jobs:
   run-bot:
@@ -26,9 +26,11 @@ jobs:
         cp ../yafa .
         chmod +x yafa
 
-    - name: Bot starten (mit 5,5 Stunden Limit)
+    - name: Bot starten (Sicheres Limit für 4-Stunden-Takt)
       env:
         LICHESS_BOT_TOKEN: ${{ secrets.LICHESS_TOKEN }}
       run: |
         cd framework
-        timeout 19800 python3 lichess-bot.py || true
+        # 13500 Sekunden = 3 Stunden und 45 Uhr. 
+        # Der Bot stoppt 15 Minuten BEVOR der nächste 4-Stunden-Cron zündet!
+        timeout 13500 python3 lichess-bot.py || true
