@@ -1,9 +1,9 @@
 name: Lichess Bot 24/7
 
 on:
-  schedule:
-    - cron: '0 */4 * * *' # Versucht nun alle 4 Stunden (stündlich glatt) zu starten
-  workflow_dispatch:
+  workflow_dispatch: # Erlaubt den manuellen Start per Klick
+  repository_dispatch:
+    types: [restart-bot] # Erlaubt den automatischen Neustart
 
 jobs:
   run-bot:
@@ -19,18 +19,24 @@ jobs:
 
     - name: Lichess-Bot-Framework installieren
       run: |
-        git clone https://github.com/ShailChoksi/lichess-bot.git framework
+        git clone https://github.com framework
         cd framework
         pip install -r requirements.txt
         cp ../config.yml .
         cp ../yafa .
         chmod +x yafa
 
-    - name: Bot starten (Sicheres Limit für 4-Stunden-Takt)
+    - name: Bot starten (3 Stunden 45 Minuten Schicht)
       env:
         LICHESS_BOT_TOKEN: ${{ secrets.LICHESS_TOKEN }}
       run: |
         cd framework
-        # 13500 Sekunden = 3 Stunden und 45 Uhr. 
-        # Der Bot stoppt 15 Minuten BEVOR der nächste 4-Stunden-Cron zündet!
         timeout 13500 python3 lichess-bot.py || true
+
+    - name: Automatischen Neustart triggern
+      if: always() # Wird auch ausgeführt, wenn der Bot per Timeout beendet wurde
+      run: |
+        curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+        -H "Accept: application/vnd.github.v3+json" \
+        https://github.com{{ github.repository }}/dispatches \
+        -d '{"event_type": "restart-bot"}'
