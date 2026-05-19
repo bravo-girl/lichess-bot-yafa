@@ -1,13 +1,17 @@
 name: Lichess Bot 24/7
 
 on:
-  workflow_dispatch: # Erlaubt den manuellen Start per Klick
+  workflow_dispatch:
   repository_dispatch:
-    types: [restart-bot] # Erlaubt den automatischen Neustart
+    types: [restart-bot]
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+
     steps:
     - name: Code auschecken
       uses: actions/checkout@v4
@@ -26,17 +30,25 @@ jobs:
         cp ../yafa .
         chmod +x yafa
 
-    - name: Bot starten (3 Stunden 45 Minuten Schicht)
+    - name: Token in config.yml einfügen
       env:
         LICHESS_BOT_TOKEN: ${{ secrets.LICHESS_TOKEN }}
       run: |
+        # Ersetzt den Platzhalter-String durch den echten Token
+        sed -i "s|\$LICHESS_BOT_TOKEN|${LICHESS_BOT_TOKEN}|g" framework/config.yml
+
+    - name: Bot starten (3 Stunden 45 Minuten Schicht)
+      run: |
         cd framework
-        timeout 13500 python3 lichess-bot.py || true
+        timeout 13500 python3 lichess-bot.py -v || true
 
     - name: Automatischen Neustart triggern
-      if: always() # Wird auch ausgeführt, wenn der Bot per Timeout beendet wurde
+      if: always()
+      env:
+        PAT_TOKEN: ${{ secrets.MY_PAT }}  # <-- PAT, nicht GITHUB_TOKEN!
       run: |
-        curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-        -H "Accept: application/vnd.github.v3+json" \
-        https://github.com{{ github.repository }}/dispatches \
-        -d '{"event_type": "restart-bot"}'
+        curl -s -X POST \
+          -H "Authorization: token ${PAT_TOKEN}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/dispatches" \
+          -d '{"event_type": "restart-bot"}'
