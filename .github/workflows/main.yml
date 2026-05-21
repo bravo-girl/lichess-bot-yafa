@@ -43,7 +43,7 @@ jobs:
         timeout 13500 python3 lichess-bot.py -v || true
 
     - name: Automatischen Neustart triggern
-      if: always()
+      if: success()
       env:
         PAT_TOKEN: ${{ secrets.MY_PAT }}  # <-- PAT, nicht GITHUB_TOKEN!
       run: |
