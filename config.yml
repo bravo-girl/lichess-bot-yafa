@@ -3,7 +3,7 @@ url: "https://lichess.org"
 
 matchmaking:
   allow_during_games: false
-  challenge_timeout: 900
+  challenge_timeout: 30
   block_list: []
 
 engine:
