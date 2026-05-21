@@ -13,6 +13,7 @@ engine:
   options:
     Threads: 1
     Hash: 16
+    Slow Mover: 125
   ponder: false
 
 challenge:
