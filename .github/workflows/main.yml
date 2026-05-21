@@ -40,7 +40,8 @@ jobs:
     - name: Bot starten (3 Stunden 45 Minuten Schicht)
       run: |
         cd framework
-        timeout 13500 python3 lichess-bot.py -v || true
+        # WICHTIG: fängt NUR das reguläre Timeout (124) ab. Ein Abbruch bricht den Job ab!
+        timeout 13500 python3 lichess-bot.py -v || [ $? -eq 124 ]
 
     - name: Automatischen Neustart triggern
       if: success()
