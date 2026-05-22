@@ -15,6 +15,10 @@ engine:
     Hash: 64
     Slow Mover: 125
     Opponent Time Share: 70
+    SyzygyPath: "./syzygy"
+    SyzygyProbeDepth: 1
+    Syzygy50MoveRule: true
+    SyzygyProbeLimit: 5
   ponder: true
 
 challenge:

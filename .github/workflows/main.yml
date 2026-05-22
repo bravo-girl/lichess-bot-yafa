@@ -23,6 +23,22 @@ jobs:
       with:
         python-version: '3.10'
 
+    - name: Syzygy 3-4-5 Cache
+      uses: actions/cache@v4
+      id: syzygy-cache
+      with:
+        path: syzygy
+        key: syzygy-3-4-5-sesse-v1
+
+    - name: Syzygy 3-4-5 herunterladen
+      if: steps.syzygy-cache.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p syzygy
+        wget --mirror --no-parent --no-directories -e robots=off \
+          --accept "*.rtbw,*.rtbz" \
+          --directory-prefix=syzygy \
+          http://tablebase.sesse.net/syzygy/3-4-5/
+
     - name: Lichess-Bot-Framework installieren
       run: |
         git clone https://github.com/ShailChoksi/lichess-bot.git framework
@@ -30,6 +46,7 @@ jobs:
         pip install -r requirements.txt
         cp ../config.yml .
         cp ../yafa .
+        cp -r ../syzygy .
         chmod +x yafa
 
     - name: Token in config.yml einfügen
