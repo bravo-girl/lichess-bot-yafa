@@ -12,9 +12,9 @@ engine:
   protocol: "uci"
   uci_options:
     Threads: 1
-    Hash: 16
+    Hash: 64
     Slow Mover: 125
-  ponder: false
+  ponder: true
 
 challenge:
   accept_bot: true
