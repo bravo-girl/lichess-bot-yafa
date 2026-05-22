@@ -28,16 +28,20 @@ jobs:
       id: syzygy-cache
       with:
         path: syzygy
-        key: syzygy-3-4-5-sesse-v1
+        key: syzygy-3-4-5-lichess-v1
 
     - name: Syzygy 3-4-5 herunterladen
       if: steps.syzygy-cache.outputs.cache-hit != 'true'
       run: |
         mkdir -p syzygy
         wget --mirror --no-parent --no-directories -e robots=off \
-          --accept "*.rtbw,*.rtbz" \
+          --accept "*.rtbw" \
           --directory-prefix=syzygy \
-          http://tablebase.sesse.net/syzygy/3-4-5/
+          https://tablebase.lichess.ovh/tables/standard/3-4-5-wdl/
+        wget --mirror --no-parent --no-directories -e robots=off \
+          --accept "*.rtbz" \
+          --directory-prefix=syzygy \
+          https://tablebase.lichess.ovh/tables/standard/3-4-5-dtz/
 
     - name: Lichess-Bot-Framework installieren
       run: |
