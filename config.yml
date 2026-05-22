@@ -14,6 +14,7 @@ engine:
     Threads: 1
     Hash: 64
     Slow Mover: 125
+    Opponent Think Bonus: 20
   ponder: true
 
 challenge:
