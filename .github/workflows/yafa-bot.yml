@@ -47,6 +47,13 @@ jobs:
             --directory-prefix=syzygy \
             https://tablebase.lichess.ovh/tables/standard/3-4-5-dtz/
 
+      - name: Syzygy 3-4-5 pruefen
+        run: |
+          find syzygy -type f | wc -l
+          du -sh syzygy
+          test -f syzygy/KPvK.rtbw
+          test -f syzygy/KPvK.rtbz
+
       - name: Lichess-Bot-Framework installieren
         run: |
           git clone https://github.com/ShailChoksi/lichess-bot.git framework
