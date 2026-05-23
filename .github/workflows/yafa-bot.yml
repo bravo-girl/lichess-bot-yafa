@@ -1,0 +1,80 @@
+name: YAFA Bot 24/7
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [restart-yafa-bot]
+
+concurrency:
+  group: yafa-bot-main
+  cancel-in-progress: true
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Syzygy 3-4-5 Cache
+        uses: actions/cache@v4
+        id: syzygy-cache
+        with:
+          path: syzygy
+          key: syzygy-3-4-5-lichess-v1
+
+      - name: Syzygy 3-4-5 herunterladen
+        if: steps.syzygy-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p syzygy
+          wget --mirror --no-parent --no-directories -e robots=off \
+            --accept "*.rtbw" \
+            --directory-prefix=syzygy \
+            https://tablebase.lichess.ovh/tables/standard/3-4-5-wdl/
+          wget --mirror --no-parent --no-directories -e robots=off \
+            --accept "*.rtbz" \
+            --directory-prefix=syzygy \
+            https://tablebase.lichess.ovh/tables/standard/3-4-5-dtz/
+
+      - name: Lichess-Bot-Framework installieren
+        run: |
+          git clone https://github.com/ShailChoksi/lichess-bot.git framework
+          cd framework
+          pip install -r requirements.txt
+          cp ../config.yml .
+          cp ../yafa .
+          cp -r ../syzygy .
+          chmod +x yafa
+
+      - name: Token in config.yml einfuegen
+        env:
+          LICHESS_BOT_TOKEN: ${{ secrets.LICHESS_TOKEN }}
+        run: |
+          sed -i "s|\$LICHESS_BOT_TOKEN|${LICHESS_BOT_TOKEN}|g" framework/config.yml
+
+      - name: Bot starten (3 Stunden 45 Minuten Schicht)
+        run: |
+          cd framework
+          timeout 13500 python3 lichess-bot.py -v || [ $? -eq 124 ]
+
+      - name: Automatischen Neustart triggern
+        if: success()
+        env:
+          PAT_TOKEN: ${{ secrets.MY_PAT }}
+        run: |
+          curl -s -X POST \
+            -H "Authorization: token ${PAT_TOKEN}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/dispatches" \
+            -d '{"event_type": "restart-yafa-bot"}'
