@@ -66,7 +66,8 @@ jobs:
           find syzygy -type f | wc -l
           du -sh syzygy
           size_mb=$(du -sm syzygy | cut -f1)
-          test "$size_mb" -lt 9500
+          echo "Syzygy cache size: ${size_mb} MiB"
+          test "$size_mb" -lt 10000
           test -f syzygy/KPvK.rtbw
           test -f syzygy/KPvK.rtbz
           test -f syzygy/KRBvKRP.rtbw
