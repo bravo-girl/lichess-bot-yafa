@@ -18,7 +18,7 @@ engine:
     SyzygyPath: "./syzygy"
     SyzygyProbeDepth: 1
     Syzygy50MoveRule: true
-    SyzygyProbeLimit: 5
+    SyzygyProbeLimit: 6
   ponder: true
 
 challenge:

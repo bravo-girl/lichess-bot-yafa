@@ -27,32 +27,50 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Syzygy 3-4-5 Cache
+      - name: Syzygy 3-4-5 plus 6-men WDL Cache
         uses: actions/cache@v4
         id: syzygy-cache
         with:
           path: syzygy
-          key: syzygy-3-4-5-lichess-v1
+          key: syzygy-3-4-5-plus-6men-wdl-selected-lichess-v1
 
-      - name: Syzygy 3-4-5 herunterladen
+      - name: Syzygy 3-4-5 plus selektive 6-men WDL herunterladen
         if: steps.syzygy-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p syzygy
+          cd syzygy
           wget --mirror --no-parent --no-directories -e robots=off \
             --accept "*.rtbw" \
-            --directory-prefix=syzygy \
             https://tablebase.lichess.ovh/tables/standard/3-4-5-wdl/
           wget --mirror --no-parent --no-directories -e robots=off \
             --accept "*.rtbz" \
-            --directory-prefix=syzygy \
             https://tablebase.lichess.ovh/tables/standard/3-4-5-dtz/
+          base="https://tablebase.lichess.ovh/tables/standard/6-wdl"
+          files=(
+            KRBvKRP.rtbw KRBPvKP.rtbw KRNvKNP.rtbw KRPvKRP.rtbw
+            KRPvKPP.rtbw KRPPvKR.rtbw KRBvKPP.rtbw KRRBvKR.rtbw
+            KRPPvKP.rtbw KPPPvKR.rtbw KRNvKPP.rtbw KNPPvKR.rtbw
+            KRPPvKB.rtbw KRBPvKR.rtbw KRPvKBP.rtbw KRNPvKB.rtbw
+            KRBPvKN.rtbw KRPPPvK.rtbw KRBPPvK.rtbw
+            KBPPvKP.rtbw KQBPvKP.rtbw KQQBvKP.rtbw KBBvKPP.rtbw
+            KBPvKNP.rtbw KQBvKQN.rtbw KNPPPvK.rtbw KQNPPvK.rtbw
+            KQQBvKN.rtbw KQQBvKQ.rtbw KQQPvKN.rtbw KQPPvKB.rtbw
+            KQPvKQP.rtbw KQPPPvK.rtbw KPPvKPP.rtbw KPPPPvK.rtbw
+          )
+          for file in "${files[@]}"; do
+            wget --continue --tries=20 --timeout=60 --waitretry=10 "${base}/${file}"
+          done
 
-      - name: Syzygy 3-4-5 pruefen
+      - name: Syzygy 3-4-5 plus 6-men WDL pruefen
         run: |
           find syzygy -type f | wc -l
           du -sh syzygy
+          size_mb=$(du -sm syzygy | cut -f1)
+          test "$size_mb" -lt 9500
           test -f syzygy/KPvK.rtbw
           test -f syzygy/KPvK.rtbz
+          test -f syzygy/KRBvKRP.rtbw
+          test -f syzygy/KPPvKPP.rtbw
 
       - name: Lichess-Bot-Framework installieren
         run: |
