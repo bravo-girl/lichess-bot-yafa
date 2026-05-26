@@ -115,6 +115,15 @@ jobs:
               '            return\n\n'
           )
           text = text.replace(marker, marker + draw_accept)
+          marker = "        # Heed min_time\n"
+          draw_offer = (
+              '        if (not best_move.resigned\n'
+              '                and best_move.move is not None\n'
+              '                and syzygy_says_draw(board)):\n'
+              '            logger.info("Offering draw: local Syzygy WDL proves draw.")\n'
+              '            best_move.draw_offered = True\n\n'
+          )
+          text = text.replace(marker, draw_offer + marker)
           wrapper.write_text(text)
           PY
           pip install -r requirements.txt
