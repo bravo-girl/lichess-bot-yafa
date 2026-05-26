@@ -11,7 +11,7 @@ engine:
   name: "yafa"
   protocol: "uci"
   uci_options:
-    Threads: 2
+    Threads: 4
     Hash: 64
     Slow Mover: 125
     Opponent Time Share: 70
