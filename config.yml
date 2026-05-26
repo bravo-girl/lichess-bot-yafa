@@ -12,7 +12,7 @@ engine:
   protocol: "uci"
   uci_options:
     Threads: 4
-    Hash: 64
+    Hash: 256
     Slow Mover: 125
     Opponent Time Share: 70
     SyzygyPath: "./syzygy"
