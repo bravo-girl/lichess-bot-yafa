@@ -77,6 +77,46 @@ jobs:
         run: |
           git clone https://github.com/ShailChoksi/lichess-bot.git framework
           cd framework
+          python3 - <<'PY'
+          from pathlib import Path
+
+          lichess = Path("lib/lichess.py")
+          text = lichess.read_text()
+          text = text.replace(
+              '    "takeback": "/api/bot/game/{}/takeback/{}",',
+              '    "takeback": "/api/bot/game/{}/takeback/{}",\n'
+              '    "draw": "/api/bot/game/{}/draw/{}",'
+          )
+          lichess.write_text(text)
+
+          wrapper = Path("lib/engine_wrapper.py")
+          text = wrapper.read_text()
+          marker = "def check_for_draw_offer(game: model.Game) -> bool:\n"
+          helper = '''def syzygy_says_draw(board: chess.Board) -> bool:
+              """Return true if local Syzygy WDL proves the current position drawn."""
+              if chess.popcount(board.occupied) > 6:
+                  return False
+
+              try:
+                  with chess.syzygy.open_tablebase("syzygy") as tablebase:
+                      return tablebase.probe_wdl(board) == 0
+              except Exception as error:
+                  logger.debug(f"Syzygy draw-offer probe failed: {error}")
+                  return False
+
+
+          '''
+          text = text.replace(marker, helper + marker)
+          marker = "        lichess_bot_tbs = engine_cfg.lichess_bot_tbs\n\n"
+          draw_accept = (
+              '        if check_for_draw_offer(game) and syzygy_says_draw(board):\n'
+              '            logger.info("Accepting opponent draw offer: local Syzygy WDL proves draw.")\n'
+              '            li.api_post("draw", game.id, "yes")\n'
+              '            return\n\n'
+          )
+          text = text.replace(marker, marker + draw_accept)
+          wrapper.write_text(text)
+          PY
           pip install -r requirements.txt
           cp ../config.yml .
           cp ../yafa .
