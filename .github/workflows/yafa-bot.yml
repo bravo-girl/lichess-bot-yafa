@@ -129,7 +129,7 @@ jobs:
           pip install -r requirements.txt
           cp ../config.yml .
           cp ../yafa .
-          cp -r ../syzygy .
+          ln -s ../syzygy syzygy
           chmod +x yafa
 
       - name: Token in config.yml einfuegen
