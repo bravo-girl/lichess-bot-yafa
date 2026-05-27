@@ -92,7 +92,12 @@ jobs:
           wrapper = Path("lib/engine_wrapper.py")
           text = wrapper.read_text()
           marker = "def check_for_draw_offer(game: model.Game) -> bool:\n"
-          helper = '''def syzygy_says_draw(board: chess.Board) -> bool:
+          helper = '''OPPONENT_TB_TIMES = {}
+          OPPONENT_LAST_CLOCK = {}
+          OPPONENT_LAST_SAMPLE_PLY = {}
+
+
+          def syzygy_says_draw(board: chess.Board) -> bool:
               """Return true if local Syzygy WDL proves the current position drawn."""
               if chess.popcount(board.occupied) > 6:
                   return False
@@ -105,14 +110,83 @@ jobs:
                   return False
 
 
+          def opponent_clock_ms(game: model.Game) -> int:
+              clock_key = "wtime" if game.opponent_color == "white" else "btime"
+              return int(game.state.get(clock_key, 0) or 0)
+
+
+          def opponent_increment_ms(game: model.Game) -> int:
+              increment_key = "winc" if game.opponent_color == "white" else "binc"
+              return int(game.state.get(increment_key, 0) or 0)
+
+
+          def remember_opponent_reply_time(game: model.Game, board: chess.Board) -> None:
+              """Track opponent speed in tablebase-sized drawn endings."""
+              if chess.popcount(board.occupied) > 6:
+                  return
+
+              ply = len((game.state.get("moves") or "").split())
+              if OPPONENT_LAST_SAMPLE_PLY.get(game.id) == ply:
+                  return
+
+              current_clock = opponent_clock_ms(game)
+              increment = opponent_increment_ms(game)
+              previous_clock = OPPONENT_LAST_CLOCK.get(game.id)
+              OPPONENT_LAST_CLOCK[game.id] = current_clock
+              OPPONENT_LAST_SAMPLE_PLY[game.id] = ply
+
+              if previous_clock is None:
+                  return
+
+              used = max(0, previous_clock + increment - current_clock)
+              if used <= 120000:
+                  times = OPPONENT_TB_TIMES.setdefault(game.id, [])
+                  times.append(used)
+                  del times[:-6]
+
+
+          def opponent_looks_tb_fast(game: model.Game) -> bool:
+              times = OPPONENT_TB_TIMES.get(game.id, [])
+              if len(times) < 2:
+                  return False
+
+              increment = opponent_increment_ms(game)
+              fast_limit = max(2500, min(5000, increment + 1200))
+              recent = times[-3:]
+              return sum(time_used <= fast_limit for time_used in recent) >= 2
+
+
+          def trivial_syzygy_draw(board: chess.Board) -> bool:
+              return chess.popcount(board.occupied) <= 3 or board.is_insufficient_material()
+
+
+          def should_take_syzygy_draw(game: model.Game, board: chess.Board) -> bool:
+              if not syzygy_says_draw(board):
+                  return False
+
+              remember_opponent_reply_time(game, board)
+
+              if trivial_syzygy_draw(board):
+                  return True
+
+              if game.my_remaining_time() <= seconds(15):
+                  return True
+
+              return opponent_looks_tb_fast(game)
+
+
           def accept_syzygy_draw_offer(li: lichess.Lichess, game: model.Game, board: chess.Board) -> bool:
-              """Accept an opponent draw offer directly when local Syzygy WDL proves draw."""
+              """Accept Syzygy-drawn offers only after the opponent also looks TB-aware."""
               if not check_for_draw_offer(game) or not syzygy_says_draw(board):
+                  return False
+
+              if not should_take_syzygy_draw(game, board):
+                  logger.info("Postponed draw offer: Syzygy WDL is draw, but opponent is not replying TB-fast yet.")
                   return False
 
               response = li.session.post(f"{li.baseUrl}/api/bot/game/{game.id}/draw/yes", timeout=2)
               response.raise_for_status()
-              logger.info("Accepted opponent draw offer: local Syzygy WDL proves draw.")
+              logger.info("Accepted opponent draw offer: Syzygy WDL is draw and opponent also looks TB-aware.")
               return True
 
 
@@ -128,8 +202,8 @@ jobs:
           draw_offer = (
               '        if (not best_move.resigned\n'
               '                and best_move.move is not None\n'
-              '                and syzygy_says_draw(board)):\n'
-              '            logger.info("Offering draw: local Syzygy WDL proves draw.")\n'
+              '                and should_take_syzygy_draw(game, board)):\n'
+              '            logger.info("Offering draw: Syzygy WDL is draw and opponent also looks TB-aware or risk is low.")\n'
               '            best_move.draw_offered = True\n\n'
           )
           text = text.replace(marker, draw_offer + marker)
