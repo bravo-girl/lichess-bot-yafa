@@ -147,13 +147,13 @@ jobs:
 
           def opponent_looks_tb_fast(game: model.Game) -> bool:
               times = OPPONENT_TB_TIMES.get(game.id, [])
-              if len(times) < 2:
+              if len(times) < 5:
                   return False
 
               increment = opponent_increment_ms(game)
               fast_limit = max(2500, min(5000, increment + 1200))
-              recent = times[-3:]
-              return sum(time_used <= fast_limit for time_used in recent) >= 2
+              recent = times[-5:]
+              return sum(time_used <= fast_limit for time_used in recent) >= 4
 
 
           def trivial_syzygy_draw(board: chess.Board) -> bool:
