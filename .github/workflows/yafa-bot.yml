@@ -105,13 +105,22 @@ jobs:
                   return False
 
 
+          def accept_syzygy_draw_offer(li: lichess.Lichess, game: model.Game, board: chess.Board) -> bool:
+              """Accept an opponent draw offer directly when local Syzygy WDL proves draw."""
+              if not check_for_draw_offer(game) or not syzygy_says_draw(board):
+                  return False
+
+              response = li.session.post(f"{li.baseUrl}/api/bot/game/{game.id}/draw/yes", timeout=2)
+              response.raise_for_status()
+              logger.info("Accepted opponent draw offer: local Syzygy WDL proves draw.")
+              return True
+
+
           '''
           text = text.replace(marker, helper + marker)
           marker = "        lichess_bot_tbs = engine_cfg.lichess_bot_tbs\n\n"
           draw_accept = (
-              '        if check_for_draw_offer(game) and syzygy_says_draw(board):\n'
-              '            logger.info("Accepting opponent draw offer: local Syzygy WDL proves draw.")\n'
-              '            li.api_post("draw", game.id, "yes")\n'
+              '        if accept_syzygy_draw_offer(li, game, board):\n'
               '            return\n\n'
           )
           text = text.replace(marker, marker + draw_accept)

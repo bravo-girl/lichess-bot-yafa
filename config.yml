@@ -13,7 +13,7 @@ engine:
   uci_options:
     Threads: 4
     Hash: 256
-    Slow Mover: 125
+    Slow Mover: 100
     Opponent Time Share: 70
     SyzygyPath: "./syzygy"
     SyzygyProbeDepth: 1
