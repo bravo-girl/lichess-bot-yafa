@@ -98,8 +98,8 @@ jobs:
             'go depth 1' \
             'quit' | ./yafa)
           echo "$out"
-          echo "$out" | grep -Eq 'tbhits [1-9]'
-          ! echo "$out" | grep -q 'bestmove a3b3'
+          echo "$out" | grep -Eq 'info string Found +[1-9][0-9]* tablebases'
+          echo "$out" | grep -Eq '^bestmove [a-h][1-8][a-h][1-8]'
 
       - name: Lichess-Bot-Framework installieren
         run: |
