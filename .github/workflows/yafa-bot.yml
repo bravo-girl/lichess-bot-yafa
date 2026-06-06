@@ -82,8 +82,24 @@ jobs:
           test "$size_mb" -lt 10000
           test -f syzygy/KPvK.rtbw
           test -f syzygy/KPvK.rtbz
+          test -f syzygy/KRvKR.rtbw
+          test -f syzygy/KRvKR.rtbz
           test -f syzygy/KRBvKRP.rtbw
           test -f syzygy/KPPvKPP.rtbw
+
+      - name: YAFA 4-men Syzygy Root pruefen
+        run: |
+          out=$(printf '%s\n' \
+            'uci' \
+            'setoption name SyzygyPath value syzygy' \
+            'setoption name SyzygyProbeLimit value 6' \
+            'isready' \
+            'position fen 8/8/8/8/2k5/r7/1R6/1K6 b - - 52 87' \
+            'go depth 1' \
+            'quit' | ./yafa)
+          echo "$out"
+          echo "$out" | grep -Eq 'tbhits [1-9]'
+          ! echo "$out" | grep -q 'bestmove a3b3'
 
       - name: Lichess-Bot-Framework installieren
         run: |
