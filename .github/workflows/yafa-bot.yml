@@ -20,7 +20,19 @@ jobs:
       - name: Code auschecken
         uses: actions/checkout@v4
         with:
-          lfs: true
+          lfs: false
+
+      - name: YAFA Engine aus Release laden
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -f yafa
+          gh release download yafa-engine-current \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern yafa \
+            --clobber
+          chmod +x yafa
+          ./yafa bench 1 1 1 >/dev/null
 
       - name: Python einrichten
         uses: actions/setup-python@v5
