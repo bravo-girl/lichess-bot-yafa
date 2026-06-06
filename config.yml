@@ -20,6 +20,10 @@ engine:
     Syzygy50MoveRule: true
     SyzygyProbeLimit: 6
   ponder: true
+  draw_or_resign:
+    offer_draw_enabled: false
+    offer_draw_for_egtb_zero: false
+    resign_enabled: false
 
 challenge:
   accept_bot: true
