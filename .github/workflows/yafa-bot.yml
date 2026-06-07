@@ -118,6 +118,7 @@ jobs:
           helper = '''OPPONENT_TB_TIMES = {}
           OPPONENT_LAST_CLOCK = {}
           OPPONENT_LAST_SAMPLE_PLY = {}
+          GAME_CLOCK_STATS = {}
 
 
           def syzygy_says_draw(board: chess.Board) -> bool:
@@ -138,9 +139,120 @@ jobs:
               return int(game.state.get(clock_key, 0) or 0)
 
 
+          def my_clock_ms(game: model.Game) -> int:
+              clock_key = "btime" if game.opponent_color == "white" else "wtime"
+              return int(game.state.get(clock_key, 0) or 0)
+
+
           def opponent_increment_ms(game: model.Game) -> int:
               increment_key = "winc" if game.opponent_color == "white" else "binc"
               return int(game.state.get(increment_key, 0) or 0)
+
+
+          def my_increment_ms(game: model.Game) -> int:
+              increment_key = "binc" if game.opponent_color == "white" else "winc"
+              return int(game.state.get(increment_key, 0) or 0)
+
+
+          def clock_stats(game: model.Game) -> dict:
+              return GAME_CLOCK_STATS.setdefault(game.id, {
+                  "ply": -1,
+                  "my_clock": None,
+                  "opponent_clock": None,
+                  "my_times": [],
+                  "opponent_times": [],
+                  "lead_history": [],
+                  "my_book_prefix": True,
+                  "opponent_book_prefix": True,
+              })
+
+
+          def bounded_average(values: list[int]) -> int:
+              if not values:
+                  return 0
+              return sum(values) // len(values)
+
+
+          def remember_clock_stats(game: model.Game) -> None:
+              """Track both clocks and ignore continuous sub-second opening-book replies."""
+              stats = clock_stats(game)
+              ply = len((game.state.get("moves") or "").split())
+              if stats["ply"] == ply:
+                  return
+
+              current_my_clock = my_clock_ms(game)
+              current_opponent_clock = opponent_clock_ms(game)
+              previous_my_clock = stats["my_clock"]
+              previous_opponent_clock = stats["opponent_clock"]
+              stats["ply"] = ply
+              stats["my_clock"] = current_my_clock
+              stats["opponent_clock"] = current_opponent_clock
+              stats["lead_history"].append(current_my_clock - current_opponent_clock)
+              del stats["lead_history"][:-8]
+
+              if previous_my_clock is not None:
+                  used = max(0, previous_my_clock + my_increment_ms(game) - current_my_clock)
+                  if used >= 1000 or not stats["my_book_prefix"]:
+                      stats["my_book_prefix"] = False
+                      if used <= 120000:
+                          stats["my_times"].append(used)
+                          del stats["my_times"][:-8]
+                  elif ply > 24:
+                      stats["my_book_prefix"] = False
+
+              if previous_opponent_clock is not None:
+                  used = max(0, previous_opponent_clock + opponent_increment_ms(game) - current_opponent_clock)
+                  if used >= 1000 or not stats["opponent_book_prefix"]:
+                      stats["opponent_book_prefix"] = False
+                      if used <= 120000:
+                          stats["opponent_times"].append(used)
+                          del stats["opponent_times"][:-8]
+                  elif ply > 24:
+                      stats["opponent_book_prefix"] = False
+
+
+          def favorable_no_increment_flagging_dynamics(game: model.Game) -> bool:
+              """In 0+0 around 35s, avoid draw paths if YAFA is likely to outlast the opponent."""
+              if opponent_increment_ms(game) != 0 or my_increment_ms(game) != 0:
+                  return False
+
+              remember_clock_stats(game)
+              stats = clock_stats(game)
+              my_time_ms = my_clock_ms(game)
+              opponent_time_ms = opponent_clock_ms(game)
+              lead = my_time_ms - opponent_time_ms
+
+              if opponent_time_ms > 35000 or my_time_ms < 8000 or lead < 5000:
+                  return False
+
+              recent_my_times = stats["my_times"][-3:]
+              recent_opponent_times = stats["opponent_times"][-3:]
+              very_recent_my_times = stats["my_times"][-2:]
+              very_recent_opponent_times = stats["opponent_times"][-2:]
+              my_avg = bounded_average(recent_my_times)
+              opponent_avg = bounded_average(recent_opponent_times)
+              very_recent_my_avg = bounded_average(very_recent_my_times)
+              very_recent_opponent_avg = bounded_average(very_recent_opponent_times)
+              lead_history = stats["lead_history"][-4:]
+              lead_improved = len(lead_history) >= 3 and lead_history[-1] >= lead_history[0] + 1500
+              lead_stable_good = lead >= 10000 and len(lead_history) >= 2 and lead_history[-1] >= lead_history[-2] - 1000
+              opponent_spends_more = len(recent_opponent_times) >= 2 and opponent_avg >= 1200 and (my_avg == 0 or opponent_avg >= my_avg + 700)
+              opponent_currently_calculates = len(very_recent_opponent_times) >= 2 and very_recent_opponent_avg >= 1800 \
+                  and (very_recent_my_avg == 0 or very_recent_opponent_avg >= very_recent_my_avg + 900)
+              own_forfeit_unlikely = my_time_ms >= max(10000, 3 * max(1000, my_avg or 1000))
+
+              return own_forfeit_unlikely and (lead >= 15000 or lead_improved or lead_stable_good or opponent_spends_more or opponent_currently_calculates)
+
+
+          def no_increment_flagging_draw_refusal(game: model.Game) -> bool:
+              """In 0+0, play on instead of accepting/offering draws when the opponent can flag."""
+              if opponent_increment_ms(game) != 0 or my_increment_ms(game) != 0:
+                  return False
+
+              my_time = game.my_remaining_time()
+              opponent_time = seconds(opponent_clock_ms(game) / 1000)
+              return (my_time >= seconds(20) and opponent_time <= seconds(15) and my_time - opponent_time >= seconds(10)) \
+                  or favorable_no_increment_flagging_dynamics(game)
 
 
           def remember_opponent_reply_time(game: model.Game, board: chess.Board) -> None:
@@ -187,7 +299,12 @@ jobs:
               if not syzygy_says_draw(board):
                   return False
 
+              remember_clock_stats(game)
               remember_opponent_reply_time(game, board)
+
+              if no_increment_flagging_draw_refusal(game):
+                  logger.info("Refusing draw: 0+0 flagging edge, play on for the clock.")
+                  return False
 
               if trivial_syzygy_draw(board):
                   return True
@@ -217,6 +334,7 @@ jobs:
           text = text.replace(marker, helper + marker)
           marker = "        lichess_bot_tbs = engine_cfg.lichess_bot_tbs\n\n"
           draw_accept = (
+              '        remember_clock_stats(game)\n\n'
               '        if accept_syzygy_draw_offer(li, game, board):\n'
               '            return\n\n'
           )
